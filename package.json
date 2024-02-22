@@ -1,0 +1,23 @@
+{
+  "name": "code",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.2",
+    "fluent-ffmpeg": "^2.1.2",
+    "jsdom": "^24.0.0",
+    "node-fetch": "^3.3.2",
+    "node-file-dialog": "^1.0.3",
+    "node-id3": "^0.2.6"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
