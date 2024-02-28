@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { parentPort } from "worker_threads";
 import NodeID3 from "node-id3";
 import fetch from "node-fetch";
 
@@ -11,7 +12,6 @@ import ffmpeg from "fluent-ffmpeg";
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 ffmpeg.setFfprobePath(ffprobeInstaller.path);
 
-const SUFFIX = ".uc!";
 const OUTPUT_DIR = "output";
 const LIMIT_FILE_REG = /\/|:|\*|\?|"|<|>|\|/g; // 文件名不能包含的字符
 
@@ -73,16 +73,21 @@ const addId3 = (mp3Path, songInfo) => {
 /**
  * 音乐缓存的音乐也有m4a格式的，这些格式的音乐没法添加id3标签，所以都通过ffmpeg转为mp3格式
  */
-const toMp3 = (mp3TempPath, mp3Path, songInfo) => {
-  if (!fs.readdirSync(__dirname).includes(OUTPUT_DIR)) {
-    fs.mkdirSync(path.join(__dirname, OUTPUT_DIR));
-  }
+const toMp3 = async (mp3TempPath, mp3Path, songInfo) => {
+  return new Promise((resolve) => {
+    if (!fs.readdirSync(__dirname).includes(OUTPUT_DIR)) {
+      fs.mkdirSync(path.join(__dirname, OUTPUT_DIR));
+    }
 
-  const command = ffmpeg();
-  command
-    .input(mp3TempPath)
-    .save(mp3Path)
-    .on("end", () => addId3(mp3Path, songInfo));
+    const command = ffmpeg();
+
+    command.on("end", () => {
+      addId3(mp3Path, songInfo);
+      resolve("done");
+    });
+
+    command.input(mp3TempPath).save(mp3Path);
+  });
 };
 
 /**
@@ -91,7 +96,7 @@ const toMp3 = (mp3TempPath, mp3Path, songInfo) => {
  * @param {*} songInfo
  * @returns mp3FileName
  */
-const saveFile = (songInfo, decodeBuffer) => {
+const saveFile = async (songInfo, decodeBuffer) => {
   if (!fs.readdirSync(__dirname).includes("temp")) {
     fs.mkdirSync(path.join(__dirname, "temp"));
   }
@@ -106,41 +111,23 @@ const saveFile = (songInfo, decodeBuffer) => {
 
   fs.writeFileSync(mp3TempPath, decodeBuffer);
 
-  toMp3(mp3TempPath, mp3Path, songInfo);
+  await toMp3(mp3TempPath, mp3Path, songInfo);
 };
 
-export const start = async (dir) => {
-  const fileNames = fs.readdirSync(dir).filter((file) => file.endsWith(SUFFIX));
+parentPort.on("message", async ({ dir, fileNames }) => {
+  for (let i = 0, len = fileNames.length; i < len; i++) {
+    const fileName = fileNames[i];
 
-  for (const fileName of fileNames) {
     const fileBuffer = fs.readFileSync(path.join(dir, fileName));
     const decodeBuffer = decode(fileBuffer);
 
     const songId = fileName.slice(0, fileName.indexOf("-"));
     const songInfo = await getSongInfo(songId);
 
-    saveFile(songInfo, decodeBuffer);
+    await saveFile(songInfo, decodeBuffer);
+
+    if (i === len - 1) {
+      parentPort.postMessage("done");
+    }
   }
-};
-
-// const a = fs.readFileSync('./2001320.mp3.uc!');
-// const b = a.map((buffer) => buffer ^ 0xa3);
-
-// const tags = NodeID3.read('./o.mp3');
-// console.log(tags);
-
-// (async () => {
-//   const res = await fetch(`https://music.163.com/api/song/detail/?ids=[2308499]`);
-//   const data = await res.json();
-
-//   const song = data.songs[0];
-
-//   const tags = {
-//     title: song.name,
-//     artist: song.artists.map((artist) => artist.name).join(' '),
-//     album: song.album.name,
-//     image: await getAlbumImage()
-//   };
-
-//   NodeID3.write(tags, './o.mp3');
-// })()
+});
