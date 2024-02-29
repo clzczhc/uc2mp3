@@ -71,10 +71,44 @@ const addId3 = (mp3Path, songInfo) => {
 };
 
 /**
+ * 获取转换前的音频的配置，实现保质保量。
+ * https://zhuanlan.zhihu.com/p/646617925
+ */
+const getOutputOptions = async (mp3TempPath) => {
+  const { ffprobe } = ffmpeg;
+
+  return new Promise((resolve, reject) => {
+    ffprobe(mp3TempPath, (err, data) => {
+      let outputOptions;
+
+      for (const stream of data.streams) {
+        const codecType = stream.codec_type;
+
+        if (codecType === "audio") {
+          const bitRate = stream.bit_rate;
+          const sampleRate = stream.sample_rate;
+          const channels = stream.channels;
+          const channelLayout = stream.channel_layout;
+
+          outputOptions = [
+            `-b:a ${bitRate}`, // 比特率
+            `-ar ${sampleRate}`, // 采样率
+            `-ac ${channels}`, // 声道数
+            `-channel_layout ${channelLayout}`, // 声道布局
+          ];
+        }
+      }
+
+      resolve(outputOptions);
+    });
+  });
+};
+
+/**
  * 音乐缓存的音乐也有m4a格式的，这些格式的音乐没法添加id3标签，所以都通过ffmpeg转为mp3格式
  */
 const toMp3 = async (mp3TempPath, mp3Path, songInfo) => {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     if (!fs.readdirSync(__dirname).includes(OUTPUT_DIR)) {
       fs.mkdirSync(path.join(__dirname, OUTPUT_DIR));
     }
@@ -86,7 +120,9 @@ const toMp3 = async (mp3TempPath, mp3Path, songInfo) => {
       resolve("done");
     });
 
-    command.input(mp3TempPath).save(mp3Path);
+    const outputOptions = await getOutputOptions(mp3TempPath);
+
+    command.input(mp3TempPath).outputOptions(outputOptions).save(mp3Path);
   });
 };
 
