@@ -120,6 +120,12 @@ const toMp3 = async (mp3TempPath, mp3Path, songInfo) => {
       resolve("done");
     });
 
+    command.on("error", (error) => {
+      console.log(mp3TempPath);
+      console.log(error.message);
+      resolve("done");
+    });
+
     const outputOptions = await getOutputOptions(mp3TempPath);
 
     command.input(mp3TempPath).outputOptions(outputOptions).save(mp3Path);
