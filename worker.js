@@ -77,7 +77,7 @@ const addId3 = (mp3Path, songInfo) => {
 const getOutputOptions = async (mp3TempPath) => {
   const { ffprobe } = ffmpeg;
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     ffprobe(mp3TempPath, (err, data) => {
       let outputOptions;
 
@@ -156,6 +156,14 @@ const saveFile = async (songInfo, decodeBuffer) => {
   await toMp3(mp3TempPath, mp3Path, songInfo);
 };
 
+const waitRandomTime = (min, max) => {
+  return new Promise((resolve) => {
+    const time = Math.floor(Math.random() * (max - min + 1)) + min;
+
+    setTimeout(() => resolve(), time);
+  });
+};
+
 parentPort.on("message", async ({ dir, fileNames }) => {
   for (let i = 0, len = fileNames.length; i < len; i++) {
     const fileName = fileNames[i];
@@ -167,6 +175,8 @@ parentPort.on("message", async ({ dir, fileNames }) => {
     const songInfo = await getSongInfo(songId);
 
     await saveFile(songInfo, decodeBuffer);
+
+    await waitRandomTime(500, 1500);
 
     if (i === len - 1) {
       parentPort.postMessage("done");

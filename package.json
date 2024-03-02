@@ -15,7 +15,9 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node ./index.js"
+    "start": "node ./index.js",
+    "start:step1": "node ./steps/step1.js",
+    "start:step2": "node ./steps/step2.js"
   },
   "keywords": [],
   "author": "",
